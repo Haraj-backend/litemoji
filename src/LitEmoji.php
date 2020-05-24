@@ -14,7 +14,7 @@ class LitEmoji
     		   | \xF0\x9F\x99[\x80-\x8F]
     		   | \xF0\x9F\x9A[\x80-\xBF]        # Transport and map symbols
     		   | \xF0\x9F[\xA4-\xA7][\x80-\xBF] # Supplementary symbols and pictographs
-    		)/x';
+            )/x';
 
     private static $shortcodes = [];
     private static $shortcodesMostCommon = [];
@@ -96,6 +96,9 @@ class LitEmoji
 
     public static function shortcodeToUnicodeMostCommon($content)
     {
+        if (!strpos('x ' . $content, ':') !== false) {
+            return  $content;
+        }
         $replacements = self::getShortcodeCodepointsMostCommon();
         return str_replace(array_keys($replacements), $replacements, $content);
     }
