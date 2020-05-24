@@ -17,10 +17,14 @@ class LitEmoji
     		)/x';
 
     private static $shortcodes = [];
+    private static $shortcodesMostCommon = [];
     private static $shortcodeCodepoints = [];
+    private static $shortcodeCodepointsMostCommon = [];
     private static $shortcodeEntities = [];
     private static $entityCodepoints = [];
+    private static $entityCodepointsMostCommon = [];
     private static $excludedShortcodes = [];
+    private static $excludedShortcodesMostCommon = [];
 
     /**
      * Converts all unicode emoji and HTML entities to plaintext shortcodes.
@@ -65,6 +69,20 @@ class LitEmoji
     }
 
     /**
+     * Converts all plaintext shortcodes and HTML entities to unicode codepoints.
+     *
+     * @param string $content
+     * @return string
+     */
+    public static function encodeUnicodeMostCommon($content)
+    {
+        $content = self::shortcodeToUnicodeMostCommon($content);
+        $content = self::entitiesToUnicodeMostCommon($content);
+
+        return $content;
+    }
+
+    /**
      * Converts plaintext shortcodes to HTML entities.
      *
      * @param string $content
@@ -73,6 +91,12 @@ class LitEmoji
     public static function shortcodeToUnicode($content)
     {
         $replacements = self::getShortcodeCodepoints();
+        return str_replace(array_keys($replacements), $replacements, $content);
+    }
+
+    public static function shortcodeToUnicodeMostCommon($content)
+    {
+        $replacements = self::getShortcodeCodepointsMostCommon();
         return str_replace(array_keys($replacements), $replacements, $content);
     }
 
@@ -85,7 +109,7 @@ class LitEmoji
     public static function entitiesToUnicode($content)
     {
         /* Convert HTML entities to uppercase hexadecimal */
-        $content = preg_replace_callback('/\&\#(x?[a-zA-Z0-9]*?)\;/', function($matches) {
+        $content = preg_replace_callback('/\&\#(x?[a-zA-Z0-9]*?)\;/', function ($matches) {
             $code = $matches[1];
 
             if ($code[0] == 'x') {
@@ -96,6 +120,29 @@ class LitEmoji
         }, $content);
 
         $replacements = self::getEntityCodepoints();
+        return str_replace(array_keys($replacements), $replacements, $content);
+    }
+
+    /**
+     * Converts HTML entities to unicode codepoints.
+     *
+     * @param string $content
+     * @return string
+     */
+    public static function entitiesToUnicodeMostCommon($content)
+    {
+        /* Convert HTML entities to uppercase hexadecimal */
+        $content = preg_replace_callback('/\&\#(x?[a-zA-Z0-9]*?)\;/', function ($matches) {
+            $code = $matches[1];
+
+            if ($code[0] == 'x') {
+                return '&#x' . strtoupper(substr($code, 1)) . ';';
+            }
+
+            return '&#x' . strtoupper(dechex($code)) . ';';
+        }, $content);
+
+        $replacements = self::getEntityCodepointsMostCommon();
         return str_replace(array_keys($replacements), $replacements, $content);
     }
 
@@ -155,7 +202,8 @@ class LitEmoji
      * @param string $content
      * @return string
      */
-    public static function shortcodeToEntities($content) {
+    public static function shortcodeToEntities($content)
+    {
         $replacements = self::getShortcodeEntities();
         return str_replace(array_keys($replacements), $replacements, $content);
     }
@@ -171,6 +219,7 @@ class LitEmoji
         switch ($property) {
             case 'excludeShortcodes':
                 self::$excludedShortcodes = [];
+                self::$excludedShortcodesMostCommon = [];
 
                 if (!is_array($value)) {
                     $value = [$value];
@@ -179,11 +228,13 @@ class LitEmoji
                 foreach ($value as $code) {
                     if (is_string($code)) {
                         self::$excludedShortcodes[] = $code;
+                        self::$excludedShortcodesMostCommon[] = $code;
                     }
                 }
 
                 // Invalidate shortcode cache
                 self::$shortcodes = [];
+                self::$shortcodesMostCommon = [];
                 break;
         }
     }
@@ -195,12 +246,28 @@ class LitEmoji
         }
 
         // Skip excluded shortcodes
-        self::$shortcodes = array_filter(require(__DIR__ . '/shortcodes-array.php'), function($code) {
+        self::$shortcodes = array_filter(require(__DIR__ . '/shortcodes-array.php'), function ($code) {
             return !in_array($code, self::$excludedShortcodes);
         }, ARRAY_FILTER_USE_KEY);
 
         return self::$shortcodes;
     }
+
+    private static function getShortcodesMostCommon()
+    {
+        if (!empty(self::$shortcodesMostCommon)) {
+            return self::$shortcodesMostCommon;
+        }
+
+        // Skip excluded shortcodes
+        self::$shortcodesMostCommon = array_filter(require(__DIR__ . '/shortcodes-array-most-common.php'), function ($code) {
+            return !in_array($code, self::$excludedShortcodesMostCommon);
+        }, ARRAY_FILTER_USE_KEY);
+
+        return self::$shortcodesMostCommon;
+    }
+
+
 
     private static function getShortcodeCodepoints()
     {
@@ -220,6 +287,25 @@ class LitEmoji
         }
 
         return self::$shortcodeCodepoints;
+    }
+    private static function getShortcodeCodepointsMostCommon()
+    {
+        if (!empty(self::$shortcodeCodepointsMostCommon)) {
+            return self::$shortcodeCodepointsMostCommon;
+        }
+
+        foreach (self::getShortcodesMostCommon() as $shortcode => $codepoint) {
+            $parts = explode('-', $codepoint);
+            $codepoint = '';
+
+            foreach ($parts as $part) {
+                $codepoint .= mb_convert_encoding(pack('N', hexdec($part)), 'UTF-8', 'UTF-32');
+            }
+
+            self::$shortcodeCodepointsMostCommon[':' . $shortcode . ':'] = $codepoint;
+        }
+
+        return self::$shortcodeCodepointsMostCommon;
     }
 
     private static function getEntityCodepoints()
@@ -244,6 +330,28 @@ class LitEmoji
         return self::$entityCodepoints;
     }
 
+    private static function getEntityCodepointsMostCommon()
+    {
+        if (!empty(self::$entityCodepointsMostCommon)) {
+            return self::$entityCodepointsMostCommon;
+        }
+
+        foreach (self::getShortcodes() as $shortcode => $codepoint) {
+            $parts = explode('-', $codepoint);
+            $entity = '';
+            $codepoint = '';
+
+            foreach ($parts as $part) {
+                $entity .= '&#x' . $part . ';';
+                $codepoint .= mb_convert_encoding(pack('N', hexdec($part)), 'UTF-8', 'UTF-32');
+            }
+
+            self::$entityCodepointsMostCommon[$entity] = $codepoint;
+        }
+
+        return self::$entityCodepointsMostCommon;
+    }
+
     private static function getShortcodeEntities()
     {
         if (!empty(self::$shortcodeEntities)) {
@@ -255,7 +363,7 @@ class LitEmoji
             self::$shortcodeEntities[':' . $shortcode . ':'] = '';
 
             foreach ($parts as $part) {
-                self::$shortcodeEntities[':' . $shortcode . ':'] .= '&#x' . $part .';';
+                self::$shortcodeEntities[':' . $shortcode . ':'] .= '&#x' . $part . ';';
             }
         }
 
