@@ -1,5 +1,10 @@
 <?php
 return [
+  'collision' => '1F4A5',
+  'left_speech_bubble' => '1F5E8',
+  'mobile' => '1F4F1',
+  'mobile_calling' => '1F4F2',
+  'mobile_phone_off' => '1F4F4',
   'joy' => '1F602',
   'heart' => '2764',
   'heart_eyes' => '1F60D',
