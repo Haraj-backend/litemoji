@@ -90,6 +90,9 @@ class LitEmoji
      */
     public static function shortcodeToUnicode($content)
     {
+        if (!strpos('x ' . $content, ':') !== false) {
+            return  $content;
+        }
         $replacements = self::getShortcodeCodepoints();
         return str_replace(array_keys($replacements), $replacements, $content);
     }
