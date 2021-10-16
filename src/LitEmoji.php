@@ -83,6 +83,27 @@ class LitEmoji
     }
 
     /**
+     * 
+     *
+     * @param string $content
+     * @return array
+     */
+    private static function getKeys($content)
+    {
+        $matches = [];
+        preg_match_all('/:[1-9a-zA-Z_\\+\\-]+:/i', $content, $matches);
+        if ($matches) {
+            if (isset($matches[0])) {
+                $keys = $matches[0];
+                $keys = array_unique($keys);
+                $keys = array_values($keys);
+                return  $keys;
+            }
+        }
+        return [];
+    }
+
+    /**
      * Converts plaintext shortcodes to HTML entities.
      *
      * @param string $content
@@ -90,11 +111,21 @@ class LitEmoji
      */
     public static function shortcodeToUnicode($content)
     {
+        $keys = [];
         if (!strpos('x ' . $content, ':') !== false) {
             return  $content;
         }
-        $replacements = self::getShortcodeCodepoints();
-        return str_replace(array_keys($replacements), $replacements, $content);
+        $keys = self::getKeys($content);
+        if (!$keys) {
+            return  $content;
+        }
+        $emojis = self::getShortcodeCodepoints();
+        $replacements = [];
+        foreach ($keys as  $value) {
+            $replacements[] = $emojis[$value];
+        }
+        $result = str_replace($keys,  $replacements, $content);
+        return  $result;
     }
 
     public static function shortcodeToUnicodeMostCommon($content)
@@ -102,8 +133,17 @@ class LitEmoji
         if (!strpos('x ' . $content, ':') !== false) {
             return  $content;
         }
-        $replacements = self::getShortcodeCodepointsMostCommon();
-        return str_replace(array_keys($replacements), $replacements, $content);
+        $keys = self::getKeys($content);
+        if (!$keys) {
+            return  $content;
+        }
+        $emojis = self::getShortcodeCodepointsMostCommon();
+        $replacements = [];
+        foreach ($keys as  $value) {
+            $replacements[] = $emojis[$value];
+        }
+        $result = str_replace($keys,  $replacements, $content);
+        return  $result;
     }
 
     /**
